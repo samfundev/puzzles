@@ -1,0 +1,9 @@
+[submodule "puzzles-unreleased"]
+	path = puzzles-unreleased
+	url = https://github.com/x-sheep/puzzles-unreleased
+[submodule "sgt-puzzles-aho-extensions"]
+	path = sgt-puzzles-aho-extensions
+	url = https://github.com/Anders-Holst/sgt-puzzles-aho-extensions
+[submodule "sgtpuzzles-extended"]
+	path = sgtpuzzles-extended
+	url = https://github.com/SteffenBauer/sgtpuzzles-extended

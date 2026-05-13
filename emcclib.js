@@ -189,7 +189,7 @@ mergeInto(LibraryManager.library, {
         colours[colour_number] = UTF8ToString(colour_string);
         if (colour_number == 0)
             document.documentElement.style.setProperty("--puzzle-background",
-                                                       colours[colour_number]);
+                colours[colour_number]);
     },
 
     /*
@@ -329,12 +329,12 @@ mergeInto(LibraryManager.library, {
             var onscreen_ctx =
                 onscreen_canvas.getContext('2d', { alpha: false });
             onscreen_ctx.drawImage(offscreen_canvas,
-                                   update_xmin, update_ymin,
-                                   update_xmax - update_xmin,
-                                   update_ymax - update_ymin,
-                                   update_xmin, update_ymin,
-                                   update_xmax - update_xmin,
-                                   update_ymax - update_ymin);
+                update_xmin, update_ymin,
+                update_xmax - update_xmin,
+                update_ymax - update_ymin,
+                update_xmin, update_ymin,
+                update_xmax - update_xmin,
+                update_ymax - update_ymin);
         }
     },
 
@@ -527,11 +527,11 @@ mergeInto(LibraryManager.library, {
      * function to do it for us with almost no extra effort.
      */
     js_canvas_draw_text: function(x, y, halign, colour, fontsize, monospaced,
-                                  text) {
+        text) {
         canvas_set_font(ctx, fontsize, monospaced);
         ctx.fillStyle = colours[colour];
         ctx.textAlign = (halign == 0 ? 'left' :
-                         halign == 1 ? 'center' : 'right');
+            halign == 1 ? 'center' : 'right');
         ctx.textBaseline = 'alphabetic';
         ctx.fillText(UTF8ToString(text), x, y);
     },
@@ -630,9 +630,11 @@ mergeInto(LibraryManager.library, {
             var dpr = window.devicePixelRatio || 1;
             setValue(wp, containing_div.clientWidth * dpr, "i32");
             setValue(hp, containing_div.clientHeight * dpr, "i32");
-            return true;
+        } else {
+            setValue(wp, window.innerWidth * 0.7, "i32");
+            setValue(hp, window.innerHeight * 0.7, "i32");
         }
-        return false;
+        return true;
     },
 
     /*
@@ -851,7 +853,7 @@ mergeInto(LibraryManager.library, {
         }
         // Load any default preferences embedded in HTML.
         for (var prefsscript of
-             document.querySelectorAll("script.preferences"))
+            document.querySelectorAll("script.preferences"))
             load_prefs_from_string(prefsscript.textContent);
         // Load saved preferences if they exist.
         try {

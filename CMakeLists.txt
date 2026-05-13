@@ -273,6 +273,9 @@ guiprogram(grapheditor untangle.c
   COMPILE_DEFINITIONS EDITOR)
 
 add_subdirectory(unfinished)
+add_subdirectory(puzzles-unreleased)
+add_subdirectory(sgt-puzzles-aho-extensions)
+add_subdirectory(sgtpuzzles-extended)
 add_subdirectory(auxiliary)
 
 if(build_cli_programs)

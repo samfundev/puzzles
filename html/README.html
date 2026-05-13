@@ -1,0 +1,107 @@
+README
+<h1 id="sgt-puzzles-aho-extensions">sgt-puzzles-aho-extensions</h1>
+<h3
+id="anders-holsts-extensions-to-simon-tathams-puzzle-collection">Anders
+Holst's extensions to Simon Tatham's puzzle collection</h3>
+<p>This package contains a number of puzzles I have written for <a
+href="http://www.chiark.greenend.org.uk/~sgtatham/puzzles/">Simon
+Tatham's Portable Puzzle Collection</a> but which have not made it into
+the official package. Nevertheless, they are fully playable and
+complete.</p>
+<h2 id="the-puzzles">The puzzles:</h2>
+<p>Click on a puzzle below for the full description of it.</p>
+<table>
+<tr>
+<td align="center"><b><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/kakuro.md">Kakuro</a></b><br/>Fill the board so that unique numbers sum up to each clue</td>
+<td align="center"><b><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/factorcross.md">Factorcross</a></b><br/>Fill the board so that the numbers' products match the clues</td>
+<td align="center"><b><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/alphacrypt.md">Alphacrypt</a></b><br/>Assign a number to each letter such that the equations match</td>
+</tr>
+<tr>
+<td><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/kakuro.md"><img src="https://raw.githubusercontent.com/Anders-Holst/sgt-puzzles-aho-extensions/main/kakuro.png"></a></td>
+<td><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/factorcross.md"><img src="https://raw.githubusercontent.com/Anders-Holst/sgt-puzzles-aho-extensions/main/factorcross.png"></a></td>
+<td><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/alphacrypt.md"><img src="https://raw.githubusercontent.com/Anders-Holst/sgt-puzzles-aho-extensions/main/alphacrypt.png"></a></td>
+</tr>
+<tr>
+<td align="center"><b><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/identifier.md">Identifier</a></b><br/>Identify the forms and positions of shapes in a board</td>
+<td align="center"><b><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/supermaze.md">Supermaze</a></b><br/>Find your way through the Supermazes, i.e mazes with states</td>
+<td align="center"><b> </b></td>
+</tr>
+<tr>
+<td><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/identifier.md"><img src="https://raw.githubusercontent.com/Anders-Holst/sgt-puzzles-aho-extensions/main/identifier3.png"></a></td>
+<td><a href="https://github.com/Anders-Holst/sgt-puzzles-aho-extensions/blob/main/supermaze.md"><img src="https://raw.githubusercontent.com/Anders-Holst/sgt-puzzles-aho-extensions/main/supermaze2.png"></a></td>
+<td> </td>
+</tr>
+</table>
+
+<h2 id="how-to-install">How to install:</h2>
+<p>You will need both the source code in this package, and the code of
+the SGT puzzle collection. This extension package was recently compiled
+together with a version of the SGT puzzles from January 2022, but
+sometimes the interface changes, so give me a notice if I need to update
+my code.</p>
+<p>To download and install, follow these steps:</p>
+<ul>
+<li>Download this package from Github. For example, on Linux you can do
+this by going into (with "cd") the directory where you want your source
+code, and running:</li>
+</ul>
+<pre><code>git clone git@github.com:Anders-Holst/sgt-puzzles-aho-extensions.git</code></pre>
+<ul>
+<li>If you have not done so already, also get the source code for the
+SGT Portable Puzzle Collection from <a
+href="https://www.chiark.greenend.org.uk/~sgtatham/puzzles/">the
+official site</a>. Download it, unpack it, and move into the resulting
+directory.</li>
+</ul>
+<pre><code>mv -f puzzles.tar.gz puzzles.tar.gz.old
+wget https://www.chiark.greenend.org.uk/~sgtatham/puzzles/puzzles.tar.gz
+tar xzf puzzles.tar.gz
+cd  `tar tzf puzzles.tar.gz | head -1` </code></pre>
+<ul>
+<li>Copy thie extension package directory into the SGT puzzles directory
+as a subdirectory called <code>aho-extensions</code>: Assuming that you
+followed the above commands, you can do:</li>
+</ul>
+<pre><code>cp -a ../sgt-puzzles-aho-extensions ./aho-extensions</code></pre>
+<ul>
+<li>In the SGT puzzles repository's <code>CMakeLists.txt</code>, add the
+line <code>add_subdirectory(aho-extensions)</code> to include the
+extensions in the compilation:</li>
+</ul>
+<pre><code>mv CMakeLists.txt CMakeLists.txt.orig
+sed &#39;s|add_subdirectory(unfinished)|add_subdirectory(unfinished)\nadd_subdirectory(aho-extensions)|&#39; &lt; CMakeLists.txt.orig &gt; CMakeLists.txt</code></pre>
+<ul>
+<li>You also need to apply a small modification to one file in the SGT
+code: Remove the word "static" in front of the function
+<code>midend_undo</code> in the file "midend.c". This is needed to be
+able to use multi-digit numbers. For example, you can do this by the
+commands:</li>
+</ul>
+<pre><code>mv midend.c midend.c.orig
+sed &#39;s|static bool midend_undo(|bool midend_undo(|&#39; &lt; midend.c.orig &gt; midend.c</code></pre>
+<ul>
+<li>Run CMake and make in the SGT puzzles folder:</li>
+</ul>
+<pre><code>cmake .
+make clean
+make</code></pre>
+<ul>
+<li>If you have super-user rights on your computer, you can now install
+all the puzzles with:</li>
+</ul>
+<pre><code>sudo make install</code></pre>
+<p>Otherwise the extension binaries are located in the aho-extensions
+subdirectory in the SGT puzzles source directory.</p>
+<ul>
+<li>You are done. Enjoy!</li>
+</ul>
+<h2 id="related-packages">Related packages</h2>
+<p>Other nice additions to the SGT puzzle collection can be found
+here:</p>
+<p><a href="https://github.com/x-sheep/puzzles-unreleased">Lennard
+Sprong's extensions</a></p>
+<p><a href="https://github.com/SteffenBauer/sgtpuzzles-extended">Steffen
+Bauer's extensions</a></p>
+<h2 id="license">LICENSE</h2>
+<p>Copyright (c) 2004-2021 Simon Tatham, 2012-2022 Anders Holst</p>
+<p>Distributed under the MIT license, see LICENSE</p>

@@ -747,7 +747,7 @@ static const char *newgame_undo_deserialise_check(
     return NULL;
 }
 
-static bool midend_undo(midend *me)
+bool midend_undo(midend *me)
 {
     const char *deserialise_error;
 
