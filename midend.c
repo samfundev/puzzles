@@ -102,6 +102,8 @@ struct midend {
     void (*game_id_change_notify_function)(void *);
     void *game_id_change_notify_ctx;
 
+    void (*move_notify_function)(const char *);
+
     bool one_key_shortcuts;
 };
 
@@ -194,6 +196,7 @@ midend *midend_new(frontend *fe, const game *ourgame,
     me->params = ourgame->default_params();
     me->game_id_change_notify_function = NULL;
     me->game_id_change_notify_ctx = NULL;
+    me->move_notify_function = NULL;
     me->encoded_presets = NULL;
     me->n_encoded_presets = 0;
 
@@ -1074,6 +1077,9 @@ static int midend_really_process_key(midend *me, int x, int y, int button)
 		me->ourgame->changed_state(me->ui,
 					   me->states[me->statepos-2].state,
 					   me->states[me->statepos-1].state);
+
+            if (me->move_notify_function)
+                me->move_notify_function(movestr);
         } else {
             goto done;
         }
@@ -3230,4 +3236,107 @@ static const char *midend_deserialise_prefs(
     free_cfg(cfg);
     sfree(buf->data);
     return errmsg;
+}
+
+int midend_play_move_string(midend *me, const char *movestr)
+{
+    game_state *oldstate =
+        me->ourgame->dup_game(me->states[me->statepos - 1].state);
+    int type = MOVE;
+    bool gottype = false;
+    int ret = PKR_NO_EFFECT;
+    float anim_time;
+    game_state *s;
+
+    if (movestr == MOVE_NO_EFFECT) {
+        ret = PKR_NO_EFFECT;
+        goto done;
+    } else {
+        ret = PKR_SOME_EFFECT;
+        if (movestr == MOVE_UI_UPDATE)
+            s = me->states[me->statepos-1].state;
+        else {
+            assert_printable_ascii(movestr);
+            s = me->ourgame->execute_move(me->states[me->statepos-1].state,
+                        movestr);
+            if (!s) {
+                /* Move is invalid on the current state (e.g. a remote
+                 * move that lost a race); skip it deterministically. */
+                ret = PKR_NO_EFFECT;
+                goto done;
+            }
+        }
+
+        if (s == me->states[me->statepos-1].state) {
+            /*
+             * make_move() is allowed to return its input state to
+             * indicate that although no move has been made, the UI
+             * state has been updated and a redraw is called for.
+             */
+            midend_redraw(me);
+            midend_set_timer(me);
+            goto done;
+        } else if (s) {
+	        midend_stop_anim(me);
+            midend_purge_states(me);
+            ensure(me);
+            assert(movestr != NULL);
+            me->states[me->nstates].state = s;
+            /* The midend owns history movestrs (freed in
+             * midend_purge_states), so take a copy of the caller's. */
+            me->states[me->nstates].movestr = dupstr(movestr);
+            me->states[me->nstates].movetype = MOVE;
+            me->statepos = ++me->nstates;
+            me->dir = +1;
+	        if (me->ui)
+		        me->ourgame->changed_state(me->ui,
+					   me->states[me->statepos-2].state,
+					   me->states[me->statepos-1].state);
+        } else {
+            goto done;
+        }
+    }
+
+    if (!gottype)
+        type = me->states[me->statepos-1].movetype;
+
+    /*
+     * See if this move requires an animation.
+     */
+    if (special(type) && !(type == SOLVE &&
+			   (me->ourgame->flags & SOLVE_ANIMATES))) {
+        anim_time = 0;
+    } else {
+        anim_time = me->ourgame->anim_length(oldstate,
+                                             me->states[me->statepos-1].state,
+                                             me->dir, me->ui);
+    }
+
+    me->oldstate = oldstate; oldstate = NULL;
+    if (anim_time > 0) {
+        me->anim_time = anim_time;
+    } else {
+        me->anim_time = 0.0;
+	    midend_finish_move(me);
+    }
+    me->anim_pos = 0.0;
+
+    midend_redraw(me);
+
+    midend_set_timer(me);
+
+    done:
+    if (oldstate) me->ourgame->free_game(oldstate);
+    return ret;
+}
+
+void midend_request_move_events(midend *me, void (*notify)(const char *))
+{
+    me->move_notify_function = notify;
+}
+
+void midend_serialise_new_game(midend *me)
+{
+    midend_purge_states(me);
+    midend_serialise(me, midend_serialise_buf_write, &me->newgame_undo);
 }

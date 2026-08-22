@@ -156,7 +156,12 @@ var gametypelist = document.getElementById("gametype");
 var gametypesubmenus = [gametypelist];
 
 // C entry point for miscellaneous events.
-var command;
+var _command;
+
+function command(action) {
+    window?.onCommand?.(action);
+    _command(action);
+}
 
 // The <form> encapsulating the menus.  Used by
 // js_get_selected_preset() and js_select_preset().
@@ -329,7 +334,14 @@ function initPuzzle() {
 
     // Stop right-clicks on the puzzle from popping up a context menu.
     // We need those right-clicks!
-    onscreen_canvas.oncontextmenu = function(event) { return false; }
+    onscreen_canvas.oncontextmenu = function (event) {
+        if (navigator.maxTouchPoints > 0) {
+            const fakeEvent = { button: 2, pageX: event.pageX, pageY: event.pageY, preventDefault: event.preventDefault.bind(event) };
+            onscreen_canvas.onmousedown(fakeEvent);
+            onscreen_canvas.onmouseup(fakeEvent);
+        }
+        return false;
+    }
 
     // Set up mouse handlers. We do a bit of tracking of the currently
     // pressed mouse buttons, to avoid sending mousemoves with no
@@ -412,7 +424,7 @@ function initPuzzle() {
     // don't fall into other categories like mouse and key events.
     // Mostly those are button presses, but there's also one for the
     // game-type dropdown having been changed.
-    command = Module.cwrap('command', 'void', ['number']);
+    _command = Module.cwrap('command', 'void', ['number']);
 
     // Event handlers for buttons and things, which call command().
     if (specific_button) specific_button.onclick = function(event) {
@@ -842,4 +854,14 @@ function post_init() {
 
     // Default to giving keyboard focus to the puzzle.
     onscreen_canvas.focus();
+
+    window.play_move_string = function(move) {
+        var play_move_string = Module.cwrap('play_move_string', 'int', ['string']);
+        return play_move_string(move);
+    }
+
+    window.set_game_id = function(game_id) {
+        var set_game_id = Module.cwrap('set_game_id', 'void', ['string']);
+        set_game_id(game_id);
+    }
 }

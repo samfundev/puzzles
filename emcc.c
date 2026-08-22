@@ -106,6 +106,8 @@ extern bool js_savefile_read(void *buf, int len);
 extern void js_save_prefs(const char *);
 extern void js_load_prefs(midend *);
 
+extern void js_move_committed(const char *movestr);
+
 /*
  * These functions are called from JavaScript, so their prototypes
  * need to be kept in sync with emccpre.js.
@@ -127,6 +129,8 @@ void dlg_return_ival(int index, int val);
 void resize_puzzle(int w, int h);
 void restore_puzzle_size(int w, int h);
 void rescale_puzzle(void);
+int play_move_string(const char *movestr);
+void set_game_id(const char *game_id);
 
 /*
  * Internal forward references.
@@ -482,6 +486,11 @@ static void update_permalinks(void)
 static void ids_changed(void *ignored)
 {
     update_permalinks();
+}
+
+static void move_committed(const char *movestr)
+{
+    js_move_committed(movestr);
 }
 
 /* ----------------------------------------------------------------------
@@ -950,6 +959,24 @@ void prefs_load_callback(midend *me, const char *prefs)
     midend_load_prefs(me, prefs_read, &ctx);
 }
 
+int play_move_string(const char *movestr)
+{
+    int result = midend_play_move_string(me, movestr);
+    post_move();
+    return result;
+}
+
+void set_game_id(const char *id)
+{
+    midend_serialise_new_game(me);
+
+    midend_game_id(me, id);
+    midend_new_game(me);
+    resize();
+    midend_redraw(me);
+    post_move();
+}
+
 /* ----------------------------------------------------------------------
  * Setup function called at page load time. It's called main() because
  * that's the most convenient thing in Emscripten, but it's not main()
@@ -1060,6 +1087,8 @@ int main(int argc, char **argv)
      * description), so that we can proactively update the permalink.
      */
     midend_request_id_changes(me, ids_changed, NULL);
+
+    midend_request_move_events(me, move_committed);
 
     /*
      * Draw the puzzle's initial state, and set up the permalinks and

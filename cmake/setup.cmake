@@ -105,10 +105,15 @@ function(puzzle NAME)
     set(EXENAME ${NAME})
   endif()
 
+  # Which collection the puzzle came from, relative to the top of the tree
+  # (empty for the original puzzles). The web front end groups by this.
+  file(RELATIVE_PATH PUZZLEDIR ${PUZZLES_ROOT_DIR} ${CMAKE_CURRENT_SOURCE_DIR})
+
   set(exename_${NAME} ${EXENAME} PARENT_SCOPE)
   set(displayname_${NAME} ${OPT_DISPLAYNAME} PARENT_SCOPE)
   set(description_${NAME} ${OPT_DESCRIPTION} PARENT_SCOPE)
   set(objective_${NAME} ${OPT_OBJECTIVE} PARENT_SCOPE)
+  set(directory_${NAME} "${PUZZLEDIR}" PARENT_SCOPE)
 
   set(official TRUE)
   if(NAME STREQUAL nullgame)
@@ -227,6 +232,7 @@ macro(export_variables_to_parent_scope)
     set(displayname_${name} ${displayname_${name}} PARENT_SCOPE)
     set(description_${name} ${description_${name}} PARENT_SCOPE)
     set(objective_${name} ${objective_${name}} PARENT_SCOPE)
+    set(directory_${name} "${directory_${name}}" PARENT_SCOPE)
   endforeach()
 endmacro()
 

@@ -1,10 +1,22 @@
 <script lang="ts">
 	import type { PageProps } from './$types';
 	import * as parse5 from 'parse5';
+	import WebSocket from 'crossws/websocket';
+	import {
+		Action,
+		type BasicOperation,
+		type Message,
+		type Operation,
+		type ServerMessage
+	} from '$lib/types';
+	import { goto, replaceState } from '$app/navigation';
+	import { page } from '$app/state';
+	import { getRandomLobbyId } from '$lib/lobbies.remote';
+	import { makeToast } from '$lib/toasts.svelte';
 
 	const { params, data }: PageProps = $props();
 	let { name } = $derived(params);
-	const { file, hasDoc } = $derived(data);
+	const { file, hasDoc, lobbyId, lobbyParam } = $derived(data);
 
 	const docname = $derived(name);
 	const jspath = '';
@@ -19,6 +31,182 @@
 		unfinished ? firstLine.slice('unfinished:'.length).trim() : firstLine
 	);
 	let instructions = $derived(htmlify(restLines.join('\n').trim()));
+	let cursors = $state<Record<string, { x: number; y: number; color: string }>>({});
+
+	let ws: WebSocket | undefined;
+	let open = $state(false);
+
+	const pending: Operation[] = [];
+	let processing = false;
+
+	function send(message: Message) {
+		if (message.type === 'operation') {
+			pending.push(message.operation);
+		}
+
+		ws?.send(JSON.stringify(message));
+	}
+
+	async function startLobby() {
+		const newLobbyId = await getRandomLobbyId();
+		makeToast(`Lobby started! Link copied to clipboard.`);
+		await goto(`?lobby=${newLobbyId}`, { replaceState: true });
+		await navigator.clipboard.writeText(window.location.href);
+	}
+
+	function getPath() {
+		return location.pathname + location.search + location.hash;
+	}
+
+	$effect(() => {
+		if (!lobbyId) return;
+
+		const protocol = page.url.protocol === 'https:' ? 'wss' : 'ws';
+		ws = new WebSocket(`${protocol}://${page.url.host}/ws`);
+		ws.addEventListener('open', () => (open = true));
+		ws.addEventListener('close', () => (open = false));
+
+		window.onDescUpdated = (desc) => {
+			if (triggerNavigate) {
+				console.log(location);
+				send({ type: 'navigate', url: location.pathname + `?lobby=${lobbyId}#${desc}` });
+				return;
+			}
+
+			if (processing || ws?.readyState !== WebSocket.OPEN) return;
+			send({ type: 'operation', operation: { desc } });
+		};
+
+		window.onCommand = (action: Action) => {
+			console.log('Command hook called with action:', action);
+			if (processing || ws?.readyState !== WebSocket.OPEN) return;
+
+			if (action === Action.NEW_GAME || !(action in Action)) return;
+
+			send({ type: 'operation', operation: Action[action].toLowerCase() as Operation });
+		};
+
+		const buttonIds: BasicOperation[] = ['restart', 'undo', 'redo', 'solve'];
+		const buttons: Record<BasicOperation, HTMLButtonElement> = {} as Record<
+			BasicOperation,
+			HTMLButtonElement
+		>;
+		for (const buttonId of buttonIds) {
+			const button = document.getElementById(buttonId) as HTMLButtonElement;
+			buttons[buttonId] = button;
+		}
+
+		function executeOperation(operation: Operation): boolean {
+			if (typeof operation === 'string') {
+				buttons[operation].click();
+			} else if ('desc' in operation) {
+				set_game_id(operation.desc);
+			} else if ('move' in operation) {
+				if (play_move_string(operation.move) !== 1) {
+					console.log('Error executing move:', operation.move);
+					return false;
+				}
+			}
+			return true;
+		}
+
+		ws.onmessage = (event) => {
+			const message = JSON.parse(event.data) as ServerMessage;
+			const { type } = message;
+			if (type === 'operation') {
+				if (message.self) {
+					pending.shift();
+				} else {
+					processing = true;
+					// Reconcile the pending moves with the received move
+					for (const operation of pending) {
+						if (operation === 'undo') {
+							buttons.redo.click();
+						} else {
+							buttons.undo.click();
+						}
+					}
+
+					for (const operation of [message.operation, ...pending]) {
+						executeOperation(operation);
+					}
+					processing = false;
+				}
+			} else if (type === 'join_lobby') {
+				console.log('Joined lobby:', message.lobbyId);
+				const id = window['permalink-desc'].getAttribute('href');
+				if (id === null) return;
+
+				const data = `?lobby=${message.lobbyId}${id}`;
+				if (triggerNavigate) {
+					send({ type: 'navigate', url: location.href + data });
+					return;
+				}
+
+				replaceState(data, {});
+
+				processing = true;
+				for (const operation of message.log) {
+					executeOperation(operation);
+				}
+				processing = false;
+			} else if (type === 'cursor') {
+				const { x, y, canvas, id, color } = message;
+				let finalX = x;
+				let finalY = y;
+				const rect = puzzlecanvas.getBoundingClientRect();
+				if (canvas === true) {
+					finalX = (x / 100) * rect.width + rect.left + window.scrollX;
+					finalY = (y / 100) * rect.height + rect.top + window.scrollY;
+				} else {
+					const px = (x / 100) * document.documentElement.scrollWidth;
+					const py = (y / 100) * document.documentElement.scrollHeight;
+
+					// get the top middle of the canvas
+					const canvasTopMiddleX = rect.left + rect.width / 2;
+					const canvasTopMiddleY = rect.top;
+					const distanceX = px - canvasTopMiddleX;
+					const distanceY = py - canvasTopMiddleY;
+					const factor = rect.width / canvas;
+					const adjustedX = canvasTopMiddleX + distanceX * factor;
+					const adjustedY = canvasTopMiddleY + distanceY * factor;
+
+					finalX = adjustedX;
+					finalY = adjustedY;
+				}
+
+				cursors[id] = { x: finalX, y: finalY, color };
+			} else if (type === 'navigate') {
+				console.log('Navigating to:', message.url);
+				location.href = message.url;
+			} else if (type === 'leave') {
+				console.log('Peer left:', message.id);
+				delete cursors[message.id];
+			}
+		};
+
+		window.moveCommitted = async (move) => {
+			if (processing) return;
+
+			send({ type: 'operation', operation: { move } });
+		};
+
+		const triggerNavigate = page.url.searchParams.has('navigate');
+		if (lobbyId) {
+			function joinLobby() {
+				send({ type: 'join_lobby', lobbyId, url: getPath() });
+				console.log('Joining lobby:', lobbyId);
+			}
+
+			if (ws.readyState === WebSocket.OPEN) {
+				joinLobby();
+			} else {
+				ws.addEventListener('open', joinLobby);
+			}
+		}
+
+		return () => ws?.close();
+	});
 </script>
 
 <svelte:head>
@@ -26,8 +214,37 @@
 		{puzzlename}, {unfinished ? 'an unfinished puzzle ' : ''}from Simon Tatham's Portable Puzzle
 		Collection
 	</title>
-	<script defer type="module" src="{jspath}{filename}.js"></script>
+	<script type="module" defer src="{jspath}{filename}.js"></script>
 </svelte:head>
+
+<svelte:window
+	onmousemove={(event) => {
+		if (ws?.readyState === WebSocket.OPEN) {
+			if (event.target === puzzlecanvas) {
+				send({
+					type: 'cursor',
+					x: (event.offsetX / puzzlecanvas.clientWidth) * 100,
+					y: (event.offsetY / puzzlecanvas.clientHeight) * 100,
+					canvas: true
+				});
+			} else {
+				send({
+					type: 'cursor',
+					x: (event.pageX / document.documentElement.scrollWidth) * 100,
+					y: (event.pageY / document.documentElement.scrollHeight) * 100,
+					canvas: puzzlecanvas.clientWidth
+				});
+			}
+		}
+	}}
+/>
+
+{#each Object.entries(cursors) as [, { x, y, color }]}
+	<div
+		class="cursor"
+		style={`left: ${x}px; top: ${y}px; background-color: ${color}; ${open ? 'display: block;' : 'display: none;'}`}
+	></div>
+{/each}
 
 <h1 align="center">{puzzlename}</h1>
 {#if unfinished}
@@ -106,6 +323,7 @@
 		Link to this puzzle:
 		<a id="permalink-desc">by game ID</a>
 		<a id="permalink-seed">by random seed</a>
+		<button onclick={startLobby} disabled={lobbyId !== null}>Start a Lobby</button>
 	</p>
 </main>
 <div id="apology">
@@ -167,7 +385,7 @@
 		<a href="../doc/{docname}.html#{docname}">Full instructions</a>
 		|
 	{/if}
-	<a href="../">Back to main puzzles page</a>
+	<a href={`../${lobbyParam}`}>Back to main puzzles page</a>
 </p>
 
 <style>
@@ -425,5 +643,19 @@
 				display: none;
 			}
 		}
+	}
+
+	.cursor {
+		position: absolute;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		border-top-left-radius: 0%;
+		pointer-events: none; /* Allow clicks to pass through the cursor */
+		z-index: 1000; /* Ensure the cursor is on top of other elements */
+
+		transition:
+			left 0.1s ease,
+			top 0.1s ease; /* Smooth transition for movement */
 	}
 </style>

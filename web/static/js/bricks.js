@@ -235,7 +235,12 @@ var gametypelist = document.getElementById("gametype");
 var gametypesubmenus = [gametypelist];
 
 // C entry point for miscellaneous events.
-var command;
+var _command;
+
+function command(action) {
+    window?.onCommand?.(action);
+    _command(action);
+}
 
 // The <form> encapsulating the menus.  Used by
 // js_get_selected_preset() and js_select_preset().
@@ -408,7 +413,14 @@ function initPuzzle() {
 
     // Stop right-clicks on the puzzle from popping up a context menu.
     // We need those right-clicks!
-    onscreen_canvas.oncontextmenu = function(event) { return false; }
+    onscreen_canvas.oncontextmenu = function (event) {
+        if (navigator.maxTouchPoints > 0) {
+            const fakeEvent = { button: 2, pageX: event.pageX, pageY: event.pageY, preventDefault: event.preventDefault.bind(event) };
+            onscreen_canvas.onmousedown(fakeEvent);
+            onscreen_canvas.onmouseup(fakeEvent);
+        }
+        return false;
+    }
 
     // Set up mouse handlers. We do a bit of tracking of the currently
     // pressed mouse buttons, to avoid sending mousemoves with no
@@ -491,7 +503,7 @@ function initPuzzle() {
     // don't fall into other categories like mouse and key events.
     // Mostly those are button presses, but there's also one for the
     // game-type dropdown having been changed.
-    command = Module.cwrap('command', 'void', ['number']);
+    _command = Module.cwrap('command', 'void', ['number']);
 
     // Event handlers for buttons and things, which call command().
     if (specific_button) specific_button.onclick = function(event) {
@@ -921,6 +933,16 @@ function post_init() {
 
     // Default to giving keyboard focus to the puzzle.
     onscreen_canvas.focus();
+
+    window.play_move_string = function(move) {
+        var play_move_string = Module.cwrap('play_move_string', 'int', ['string']);
+        return play_move_string(move);
+    }
+
+    window.set_game_id = function(game_id) {
+        var set_game_id = Module.cwrap('set_game_id', 'void', ['string']);
+        set_game_id(game_id);
+    }
 }
 // end include: /home/sam/git/puzzles/emccpre.js
 
@@ -2468,6 +2490,10 @@ async function createWasm() {
           }
       }
 
+  function _js_move_committed(movestr) {
+          window.moveCommitted?.(UTF8ToString(movestr));
+      }
+
   function _js_post_init() {
           post_init();
       }
@@ -2525,9 +2551,9 @@ async function createWasm() {
       }
 
   function _js_update_permalinks(desc, seed) {
-          desc = encodeURI(UTF8ToString(desc)).replace(/#/g, "%23");
+          desc = UTF8ToString(desc);
           if (permalink_desc !== null)
-              permalink_desc.href = "#" + desc;
+              permalink_desc.href = "#" + encodeURI(desc).replace(/#/g, "%23");
   
           if (permalink_seed !== null) {
               if (seed == 0) {
@@ -2538,6 +2564,8 @@ async function createWasm() {
                   permalink_seed.style.display = "";
               }
           }
+  
+          window?.onDescUpdated?.(desc);
       }
 
   
@@ -3162,6 +3190,8 @@ var _get_save_file = Module['_get_save_file'] = makeInvalidEarlyAccess('_get_sav
 var _free_save_file = Module['_free_save_file'] = makeInvalidEarlyAccess('_free_save_file');
 var _load_game = Module['_load_game'] = makeInvalidEarlyAccess('_load_game');
 var _prefs_load_callback = Module['_prefs_load_callback'] = makeInvalidEarlyAccess('_prefs_load_callback');
+var _play_move_string = Module['_play_move_string'] = makeInvalidEarlyAccess('_play_move_string');
+var _set_game_id = Module['_set_game_id'] = makeInvalidEarlyAccess('_set_game_id');
 var _main = Module['_main'] = makeInvalidEarlyAccess('_main');
 var _fflush = makeInvalidEarlyAccess('_fflush');
 var _emscripten_stack_get_end = makeInvalidEarlyAccess('_emscripten_stack_get_end');
@@ -3196,6 +3226,8 @@ function assignWasmExports(wasmExports) {
   assert(typeof wasmExports['free_save_file'] != 'undefined', 'missing Wasm export: free_save_file');
   assert(typeof wasmExports['load_game'] != 'undefined', 'missing Wasm export: load_game');
   assert(typeof wasmExports['prefs_load_callback'] != 'undefined', 'missing Wasm export: prefs_load_callback');
+  assert(typeof wasmExports['play_move_string'] != 'undefined', 'missing Wasm export: play_move_string');
+  assert(typeof wasmExports['set_game_id'] != 'undefined', 'missing Wasm export: set_game_id');
   assert(typeof wasmExports['__main_argc_argv'] != 'undefined', 'missing Wasm export: __main_argc_argv');
   assert(typeof wasmExports['fflush'] != 'undefined', 'missing Wasm export: fflush');
   assert(typeof wasmExports['emscripten_stack_get_end'] != 'undefined', 'missing Wasm export: emscripten_stack_get_end');
@@ -3227,6 +3259,8 @@ function assignWasmExports(wasmExports) {
   _free_save_file = Module['_free_save_file'] = createExportWrapper('free_save_file', 1);
   _load_game = Module['_load_game'] = createExportWrapper('load_game', 0);
   _prefs_load_callback = Module['_prefs_load_callback'] = createExportWrapper('prefs_load_callback', 2);
+  _play_move_string = Module['_play_move_string'] = createExportWrapper('play_move_string', 1);
+  _set_game_id = Module['_set_game_id'] = createExportWrapper('set_game_id', 1);
   _main = Module['_main'] = createExportWrapper('__main_argc_argv', 2);
   _fflush = createExportWrapper('fflush', 1);
   _emscripten_stack_get_end = wasmExports['emscripten_stack_get_end'];
@@ -3334,6 +3368,8 @@ var wasmImports = {
   js_init_puzzle: _js_init_puzzle,
   /** @export */
   js_load_prefs: _js_load_prefs,
+  /** @export */
+  js_move_committed: _js_move_committed,
   /** @export */
   js_post_init: _js_post_init,
   /** @export */

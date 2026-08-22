@@ -1,0 +1,25 @@
+# Git metadata: the build never shells out to git, and the submodules are
+# already checked out as plain directories in the build context.
+.git
+.gitignore
+.gitmodules
+
+# Host build trees. The in-tree native CMake build in particular must not leak
+# into the image: its cached absolute paths would confuse the emscripten build.
+/CMakeCache.txt
+/cmake_install.cmake
+/Makefile
+**/CMakeFiles/
+**/CMakeCache.txt
+**/cmake_install.cmake
+**/CTestTestfile.cmake
+*.o
+*.a
+
+# Regenerated inside the image.
+web/wasm/
+web/node_modules/
+web/.svelte-kit/
+web/build/
+web/dist/
+node_modules/

@@ -24,13 +24,19 @@ process.chdir(SCRIPT_DIR);
  */
 console.log('==> Building WebAssembly puzzles...');
 
+// cmake/platforms/emscripten.cmake runs the KaiOS helper scripts through
+// PERL_EXECUTABLE, and nothing in the tree ever sets it -- without this the
+// scripts are exec'd via their /usr/bin/perl shebang, which doesn't exist here.
+const perl = Bun.which('perl');
+if (!perl) throw new Error('perl not found on PATH');
+
 // Configure with emcmake
-await $`emcmake cmake --fresh -DCMAKE_C_FLAGS="-g2 -Wall -Wextra" -DMIN_FIREFOX_VERSION=${MIN_FIREFOX_VERSION} -DMIN_CHROME_VERSION=${MIN_CHROME_VERSION} -DPUZZLES_ENABLE_UNFINISHED=${UNFINISHED_PUZZLES} -B web/wasm`.cwd(
+await $`emcmake cmake --fresh -DCMAKE_C_FLAGS="-g2 -Wall -Wextra" -DPERL_EXECUTABLE=${perl} -DMIN_FIREFOX_VERSION=${MIN_FIREFOX_VERSION} -DMIN_CHROME_VERSION=${MIN_CHROME_VERSION} -DPUZZLES_ENABLE_UNFINISHED=${UNFINISHED_PUZZLES} -B web/wasm`.cwd(
 	'..'
 );
 
 // Build
-await $`cmake --build web/wasm`.cwd('..');
+await $`cmake --build web/wasm --parallel`.cwd('..');
 
 /**
  * Copy built JS and WASM files to js directory

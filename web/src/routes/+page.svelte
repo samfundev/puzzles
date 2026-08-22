@@ -3,7 +3,7 @@
 	import type { PageProps } from './$types';
 
 	let { data }: PageProps = $props();
-	let { docs } = $derived(data);
+	let { docs, lobbyParam } = $derived(data);
 	const puzzles = puzzlesRaw.split('\n').filter((x) => x);
 
 	function getCollection(directory: string) {
@@ -149,7 +149,7 @@ with a few
 						</tr>
 						<tr>
 							<td>
-								<a href={`js/${name}.html`}
+								<a href={`js/${name}.html${lobbyParam}${lobbyParam ? '&navigate' : ''}`}
 									><img title={description} src={puzzleImage(name, directory)} /></a
 								>
 							</td>

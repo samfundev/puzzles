@@ -55,6 +55,9 @@ set(emcc_export_list
   _rescale_puzzle
   # Callback for loading user preferences
   _prefs_load_callback
+  # Multiplayer
+  _play_move_string
+  _set_game_id
   # Functions for allocating and freeing C memory
   _malloc
   _free
@@ -96,6 +99,20 @@ function(set_platform_puzzle_target_properties NAME TARGET)
 endfunction()
 
 function(build_platform_extras)
+  # Puzzle metadata for the web front end, in the same spirit as the
+  # gamedesc.txt the Windows platform writes (see web/build.ts).
+  file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/gamedesc.txt "")
+  set(sorted_puzzle_names ${puzzle_names})
+  list(SORT sorted_puzzle_names)
+  foreach(name ${sorted_puzzle_names})
+    file(APPEND ${CMAKE_CURRENT_BINARY_DIR}/gamedesc.txt "\
+${name}:\
+${displayname_${name}}:\
+${description_${name}}:\
+${objective_${name}}:\
+${directory_${name}}\n")
+  endforeach()
+
   if(HALIBUT)
     set(help_dir ${CMAKE_CURRENT_BINARY_DIR}/help)
     add_custom_command(OUTPUT ${help_dir}/en

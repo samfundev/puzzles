@@ -214,9 +214,9 @@ mergeInto(LibraryManager.library, {
      * the random seed permalink.
      */
     js_update_permalinks: function(desc, seed) {
-        desc = encodeURI(UTF8ToString(desc)).replace(/#/g, "%23");
+        desc = UTF8ToString(desc);
         if (permalink_desc !== null)
-            permalink_desc.href = "#" + desc;
+            permalink_desc.href = "#" + encodeURI(desc).replace(/#/g, "%23");
 
         if (permalink_seed !== null) {
             if (seed == 0) {
@@ -227,6 +227,8 @@ mergeInto(LibraryManager.library, {
                 permalink_seed.style.display = "";
             }
         }
+
+        window?.onDescUpdated?.(desc);
     },
 
     /*
@@ -864,5 +866,9 @@ mergeInto(LibraryManager.library, {
             // absent.
             console.warn(error);
         }
-    }
+    },
+
+    js_move_committed: function(movestr) {
+        window.moveCommitted?.(UTF8ToString(movestr));
+    },
 });
