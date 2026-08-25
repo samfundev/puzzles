@@ -156,12 +156,7 @@ var gametypelist = document.getElementById("gametype");
 var gametypesubmenus = [gametypelist];
 
 // C entry point for miscellaneous events.
-var _command;
-
-function command(action) {
-    window?.onCommand?.(action);
-    _command(action);
-}
+var command;
 
 // The <form> encapsulating the menus.  Used by
 // js_get_selected_preset() and js_select_preset().
@@ -424,7 +419,7 @@ function initPuzzle() {
     // don't fall into other categories like mouse and key events.
     // Mostly those are button presses, but there's also one for the
     // game-type dropdown having been changed.
-    _command = Module.cwrap('command', 'void', ['number']);
+    command = Module.cwrap('command', 'void', ['number']);
 
     // Event handlers for buttons and things, which call command().
     if (specific_button) specific_button.onclick = function(event) {

@@ -871,4 +871,8 @@ mergeInto(LibraryManager.library, {
     js_move_committed: function(movestr) {
         window.moveCommitted?.(UTF8ToString(movestr));
     },
+
+    js_on_command: function(command) {
+        window.onCommand?.(command);
+    }
 });

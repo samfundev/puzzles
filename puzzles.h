@@ -364,6 +364,7 @@ const char *identify_game(char **name,
                           void *rctx);
 void midend_request_id_changes(midend *me, void (*notify)(void *), void *ctx);
 void midend_request_move_events(midend *me, void (*notify)(const char *));
+void midend_request_commands(midend *me, void (*notify)(int));
 int midend_play_move_string(midend *me, const char *movestr);
 void midend_serialise_new_game(midend *me);
 bool midend_get_cursor_location(midend *me, int *x, int *y, int *w, int *h);

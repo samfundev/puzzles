@@ -107,6 +107,7 @@ extern void js_save_prefs(const char *);
 extern void js_load_prefs(midend *);
 
 extern void js_move_committed(const char *movestr);
+extern void js_on_command(int n);
 
 /*
  * These functions are called from JavaScript, so their prototypes
@@ -493,6 +494,11 @@ static void move_committed(const char *movestr)
     js_move_committed(movestr);
 }
 
+static void command_received(int n)
+{
+    js_on_command(n);
+}
+
 /* ----------------------------------------------------------------------
  * Wrappers for some drawing API functions.  The rest of the implementation
  * is in emcclib.js.
@@ -804,6 +810,7 @@ void command(int n)
         js_focus_canvas();
         break;
       case 9:                          /* Solve */
+        js_on_command(9);
         if (thegame.can_solve) {
             const char *msg = midend_solve(me);
             if (msg)
@@ -1089,6 +1096,8 @@ int main(int argc, char **argv)
     midend_request_id_changes(me, ids_changed, NULL);
 
     midend_request_move_events(me, move_committed);
+
+    midend_request_commands(me, command_received);
 
     /*
      * Draw the puzzle's initial state, and set up the permalinks and

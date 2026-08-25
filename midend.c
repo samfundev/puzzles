@@ -103,6 +103,7 @@ struct midend {
     void *game_id_change_notify_ctx;
 
     void (*move_notify_function)(const char *);
+    void (*command_notify_function)(int);
 
     bool one_key_shortcuts;
 };
@@ -147,6 +148,7 @@ static const char *midend_deserialise_prefs(
 static config_item *midend_get_prefs(midend *me, game_ui *ui);
 static void midend_set_prefs(midend *me, game_ui *ui, config_item *all_prefs);
 static void midend_apply_prefs(midend *me, game_ui *ui);
+void on_command(midend *me, int command);
 
 void midend_reset_tilesize(midend *me)
 {
@@ -1007,6 +1009,7 @@ static int midend_really_process_key(midend *me, int x, int y, int button)
     if (movestr == NULL || movestr == MOVE_UNUSED) {
 	if ((me->one_key_shortcuts && (button == 'n' || button == 'N')) ||
              button == '\x0E' || button == UI_NEWGAME) {
+        on_command(me, 5);
 	    midend_new_game(me);
 	    midend_redraw(me);
             ret = PKR_SOME_EFFECT;
@@ -1014,6 +1017,7 @@ static int midend_really_process_key(midend *me, int x, int y, int button)
 	} else if ((me->one_key_shortcuts && (button=='u' || button=='U')) ||
                    button == '*' || button == '\x1A' || button == '\x1F' ||
                    button == UI_UNDO) {
+        on_command(me, 7);
 	    midend_stop_anim(me);
 	    type = me->states[me->statepos-1].movetype;
 	    gottype = true;
@@ -1023,12 +1027,14 @@ static int midend_really_process_key(midend *me, int x, int y, int button)
 	} else if ((me->one_key_shortcuts && (button=='r' || button=='R')) ||
                    button == '#' || button == '\x12' || button == '\x19' ||
                    button == UI_REDO) {
+        on_command(me, 8);
 	    midend_stop_anim(me);
 	    if (!midend_redo(me))
 		goto done;
             ret = PKR_SOME_EFFECT;
 	} else if ((button == '\x13' || button == UI_SOLVE) &&
                    me->ourgame->can_solve) {
+        on_command(me, 9);
             ret = PKR_SOME_EFFECT;
 	    if (midend_solve(me))
 		goto done;
@@ -3333,6 +3339,17 @@ int midend_play_move_string(midend *me, const char *movestr)
 void midend_request_move_events(midend *me, void (*notify)(const char *))
 {
     me->move_notify_function = notify;
+}
+
+void midend_request_commands(midend *me, void (*notify)(int))
+{
+    me->command_notify_function = notify;
+}
+
+void on_command(midend *me, int command)
+{
+    if (me->command_notify_function)
+        me->command_notify_function(command);
 }
 
 void midend_serialise_new_game(midend *me)
