@@ -18,17 +18,13 @@ const hooks = defineHooks({
 		} else if (data.type === 'join_lobby') {
 			lobbyId = data.lobbyId ?? randomLobbyId();
 			if (!lobbies[lobbyId]) {
-				lobbies[lobbyId] = { log: [], peerColors: {}, url: data.url };
+				const desc = data.url.substring(data.url.lastIndexOf('#') + 1);
+				lobbies[lobbyId] = { log: [{desc}], peerColors: {}, url: data.url };
 			}
 
 			const { log, url } = lobbies[lobbyId];
 			peer.subscribe(lobbyId);
-			peer.send({ type: 'join_lobby', lobbyId, log });
-
-			// If the peer is joining a lobby from an old URL, send them to the current URL of the lobby
-			if (url !== data.url) {
-				peer.send({ type: 'navigate', url });
-			}
+			peer.send({ type: 'join_lobby', lobbyId, log, url });
 		} else if (data.type === 'cursor') {
 			const lobby = lobbies[lobbyId];
 			if (!lobby) return;

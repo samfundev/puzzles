@@ -9,7 +9,7 @@
 		type Operation,
 		type ServerMessage
 	} from '$lib/types';
-	import { goto, replaceState } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { getRandomLobbyId } from '$lib/lobbies.remote';
 	import { makeToast } from '$lib/toasts.svelte';
@@ -55,7 +55,8 @@
 	}
 
 	function getPath() {
-		return location.pathname + location.search + location.hash;
+		const id = window['permalink-desc'].getAttribute('href');
+		return location.pathname + location.search + id;
 	}
 
 	$effect(() => {
@@ -134,22 +135,21 @@
 				}
 			} else if (type === 'join_lobby') {
 				console.log('Joined lobby:', message.lobbyId);
-				const id = window['permalink-desc'].getAttribute('href');
-				if (id === null) return;
-
-				const data = `?lobby=${message.lobbyId}${id}`;
 				if (triggerNavigate) {
-					send({ type: 'navigate', url: location.href + data });
+					send({ type: 'navigate', url: getPath() });
 					return;
 				}
-
-				replaceState(data, {});
 
 				processing = true;
 				for (const operation of message.log) {
 					executeOperation(operation);
 				}
 				processing = false;
+
+				// If the peer is joining a lobby from an old URL, send them to the current URL of the lobby
+				if (message.url !== getPath()) {
+					location.href = message.url;
+				}
 			} else if (type === 'cursor') {
 				const { x, y, canvas, id, color } = message;
 				let finalX = x;
@@ -195,7 +195,6 @@
 		if (lobbyId) {
 			function joinLobby() {
 				send({ type: 'join_lobby', lobbyId, url: getPath() });
-				console.log('Joining lobby:', lobbyId);
 			}
 
 			if (ws.readyState === WebSocket.OPEN) {
