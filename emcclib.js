@@ -628,13 +628,15 @@ mergeInto(LibraryManager.library, {
      * alone and return false.
      */
     js_canvas_get_preferred_size: function(wp, hp) {
+        var dpr = window.devicePixelRatio || 1;
         if (containing_div !== null) {
-            var dpr = window.devicePixelRatio || 1;
             setValue(wp, containing_div.clientWidth * dpr, "i32");
             setValue(hp, containing_div.clientHeight * dpr, "i32");
         } else {
-            setValue(wp, window.innerWidth * 0.7, "i32");
-            setValue(hp, window.innerHeight * 0.7, "i32");
+            // Use a larger scale for touch devices.
+            const scale = navigator.maxTouchPoints > 0 ? 0.95 : 0.7;
+            setValue(wp, window.innerWidth * scale * dpr, "i32");
+            setValue(hp, window.innerHeight * scale * dpr, "i32");
         }
         return true;
     },
