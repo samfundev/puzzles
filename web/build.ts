@@ -11,6 +11,7 @@
 import { $, Glob } from 'bun';
 import { exists, mkdir, readdir, rm } from 'node:fs/promises';
 import { join, basename, resolve, relative } from 'node:path';
+import { availableParallelism } from 'node:os';
 
 const SCRIPT_DIR = import.meta.dir;
 const UNFINISHED_PUZZLES = 'group;slide;sokoban';
@@ -35,8 +36,9 @@ await $`emcmake cmake --fresh -DCMAKE_C_FLAGS="-g2 -Wall -Wextra" -DPERL_EXECUTA
 	'..'
 );
 
-// Build
-await $`cmake --build web/wasm --parallel`.cwd('..');
+// Build with a default to one job per core and let BUILD_JOBS lower it.
+const jobs = process.env.BUILD_JOBS || String(availableParallelism());
+await $`cmake --build web/wasm --parallel ${jobs}`.cwd('..');
 
 /**
  * Copy built JS and WASM files to js directory

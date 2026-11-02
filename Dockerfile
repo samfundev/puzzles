@@ -24,6 +24,10 @@ RUN nix-shell -p bun pandoc perl emscripten cmake halibut --run true
 
 COPY . .
 
+# Caps parallel emcc jobs. Empty means one job per core.
+ARG BUILD_JOBS=
+ENV BUILD_JOBS=$BUILD_JOBS
+
 # Produces web/static/js (wasm + js), web/static/doc (halibut/pandoc output)
 # and the per-puzzle fragments under html/. The cache mount keeps emscripten's
 # sysroot between builds; without it every build spends ~10s rebuilding it
